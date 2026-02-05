@@ -143,6 +143,19 @@ def verify_api_key(x_api_key: Optional[str] = Header(None)) -> str:
 
 # ============ Main API Endpoint ============
 
+@app.get("/api/honeypot")
+async def honeypot_get():
+    """GET endpoint - returns endpoint documentation"""
+    return {
+        "status": "error",
+        "error": "Method not allowed. Use POST instead.",
+        "endpoint": "POST /api/honeypot",
+        "required_headers": {
+            "x-api-key": "your-api-key",
+            "Content-Type": "application/json"
+        }
+    }
+
 @app.post("/api/honeypot", response_model=HoneypotResponse)
 async def honeypot_endpoint(
     request: HoneypotRequest,
