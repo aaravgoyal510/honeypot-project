@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent))
   
 from fastapi import FastAPI, Header, HTTPException, status
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 from typing import List, Dict, Optional
 from datetime import datetime
 import os
@@ -49,9 +49,20 @@ GEMINI_API_KEY = os.getenv('API_KEY', 'Ayaanmalhotra@1')
 
 class MessageModel(BaseModel):
     """Individual message in conversation"""
-    sender: str  # "scammer" or "user"
+    sender: Optional[str] = "scammer"  # "scammer" or "user"
     text: str
-    timestamp: str
+    timestamp: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_message(cls, values):
+        if isinstance(values, dict):
+            if "text" not in values:
+                if "message" in values:
+                    values["text"] = values.get("message")
+                elif "content" in values:
+                    values["text"] = values.get("content")
+        return values
 
 
 class MetadataModel(BaseModel):
@@ -63,10 +74,39 @@ class MetadataModel(BaseModel):
 
 class HoneypotRequest(BaseModel):
     """Main API request model"""
-    sessionId: str
+    sessionId: str = Field(alias="session_id")
     message: MessageModel
-    conversationHistory: Optional[List[MessageModel]] = []
+    conversationHistory: Optional[List[MessageModel]] = Field(default_factory=list, alias="conversation_history")
     metadata: Optional[MetadataModel] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_payload(cls, values):
+        """Normalize payloads that send message as a string or omit fields."""
+        if isinstance(values, dict):
+            if "sessionId" not in values:
+                if "session_id" in values:
+                    values["sessionId"] = values.get("session_id")
+                elif "sessionID" in values:
+                    values["sessionId"] = values.get("sessionID")
+                elif "requestId" in values:
+                    values["sessionId"] = values.get("requestId")
+                elif "request_id" in values:
+                    values["sessionId"] = values.get("request_id")
+
+            message = values.get("message")
+            if isinstance(message, str):
+                values["message"] = {
+                    "sender": "scammer",
+                    "text": message,
+                    "timestamp": datetime.now().isoformat() + "Z"
+                }
+            elif isinstance(message, dict):
+                message.setdefault("sender", "scammer")
+                message.setdefault("timestamp", datetime.now().isoformat() + "Z")
+            if values.get("conversationHistory") is None and values.get("conversation_history") is None:
+                values["conversationHistory"] = []
+        return values
 
 
 class AgentResponse(BaseModel):
