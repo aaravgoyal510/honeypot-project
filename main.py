@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent))
   
 from fastapi import FastAPI, Header, HTTPException, status
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from datetime import datetime
@@ -43,6 +44,9 @@ app = FastAPI(
     description="AI-powered scam detection and intelligence extraction system",
     version="1.0.0"
 )
+
+# Mount static files directory
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # API Key from environment
 GEMINI_API_KEY = os.getenv('API_KEY', 'Ayaanmalhotra@1')
